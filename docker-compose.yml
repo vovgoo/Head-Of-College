@@ -1,0 +1,64 @@
+version: '3.8'
+
+services:
+  head-postgres:
+    image: postgres:13
+    container_name: head-postgres
+    environment:
+      POSTGRES_DB: "head"
+      POSTGRES_USER: "postgres"
+      POSTGRES_PASSWORD: "1"
+    volumes:
+      # - head-db-data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    restart: always
+    networks:
+      - head-net
+
+  head-archivator:
+    build:
+      context: ./head-archivator
+    container_name: head-archivator
+    depends_on:
+      - head-postgres
+    restart: always
+    networks:
+      - head-net 
+
+  head-backend:
+    build:
+      context: ./head-backend
+    container_name: head-backend
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://head-postgres:5432/head
+      HEAD_ARCHIVATOR_URL: http://head-archivator:5000
+    depends_on:
+      - head-postgres
+    restart: always
+    networks:
+      - head-net
+      - head-web
+
+  head-frontend:
+    build:
+      context: ./head-frontend
+    container_name: head-frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - head-postgres
+      - head-backend
+    restart: always
+    networks:
+      - head-web
+
+# volumes:
+#   head-db-data:
+
+networks:
+  head-net:
+    driver: bridge 
+  head-web:
+    driver: bridge
+  default:
+    driver: bridge
